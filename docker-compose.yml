@@ -31,6 +31,21 @@ services:
     profiles:
       - ollama
 
+  # Non-interactive env-driven entrypoint (9router / any OpenAI-compatible API).
+  # user: root — Docker volume owned by root, appuser cannot write cache/ (PermissionError).
+  tradingagents-daoduc:
+    build: .
+    user: root
+    env_file:
+      - .env
+    entrypoint: ["python", "run_daoduc.py"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${TRADINGAGENTS_DATA_DIR:-tradingagents_data}:/home/appuser/.tradingagents
+    tty: true
+    stdin_open: true
+
 volumes:
   tradingagents_data:
   ollama_data:
