@@ -11,6 +11,7 @@ from langgraph.prebuilt import InjectedState
 
 from tradingagents.dataflows.date_window import as_of, as_of_window
 from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
+from tradingagents.dataflows.multi_timeframe import build_multi_timeframe_snapshot
 from tradingagents.dataflows.router import no_data_available, route_to_vendor, vendor_unavailable
 from tradingagents.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
 
@@ -89,6 +90,27 @@ def get_verified_market_snapshot(
         return vendor_unavailable("get_verified_market_snapshot", exc)
     except NoMarketDataError as exc:
         return no_data_available(exc)
+
+
+@tool
+def get_multi_timeframe_snapshot(
+    symbol: Annotated[str, InjectedState("company_of_interest")],
+    curr_date: Annotated[str, "the current trading date, YYYY-mm-dd"],
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """Multi-timeframe (1h/4h/12h/1d) OHLCV + indicators for crypto, from Binance.
+
+    For each interval returns the last CLOSED candle (UTC), an indicator table
+    computed on closed candles only, recent closes, and the forming candle
+    labeled as incomplete. Use it for intraday and multi-timeframe context;
+    do not quote the forming candle's OHLC as a final candle.
+    """
+    # An exception out of a tool would end the run.
+    try:
+        date = as_of(curr_date, trade_date) or trade_date or curr_date
+        return build_multi_timeframe_snapshot(symbol, date)
+    except Exception as exc:  # noqa: BLE001
+        return f"Multi-timeframe data unavailable ({type(exc).__name__}: {exc})"
 
 
 @tool
